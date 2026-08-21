@@ -76,6 +76,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
                 segments: const [
                   ButtonSegment(value: 'easy', label: Text('简单')),
                   ButtonSegment(value: 'medium', label: Text('中等')),
+                  ButtonSegment(value: 'hard', label: Text('困难')),
                 ],
                 selected: {_difficulty},
                 onSelectionChanged: (s) => setState(() => _difficulty = s.first),

@@ -9,6 +9,7 @@ import '../core/game_logic.dart';
 import '../models/room.dart';
 import '../services/room_prefs.dart';
 import '../services/room_service.dart';
+import '../services/stats_service.dart';
 import '../services/supabase_service.dart';
 
 class RoomController extends ChangeNotifier {
@@ -27,6 +28,7 @@ class RoomController extends ChangeNotifier {
   final Set<int> _takeOverInFlight = {};
   DateTime? _lastReclaimAt;
   int? lastIndex;
+  bool _countedFinished = false;
 
   int get mySlot {
     final r = room;
@@ -47,6 +49,7 @@ class RoomController extends ChangeNotifier {
         myUid = await SupabaseService.ensureSignedIn();
         myName = name;
         room = await RoomService.createRoom(name, aiCount, difficulty: difficulty);
+        _countedFinished = room!.isFinished;
         await RoomPrefs.save(room!.code, name);
         await _subscribe();
         _startHeartbeat();
@@ -57,6 +60,7 @@ class RoomController extends ChangeNotifier {
         myUid = await SupabaseService.ensureSignedIn();
         myName = name;
         room = await RoomService.joinRoom(code, name);
+        _countedFinished = room!.isFinished;
         await RoomPrefs.save(room!.code, name);
         await _subscribe();
         _startHeartbeat();
@@ -91,7 +95,27 @@ class RoomController extends ChangeNotifier {
         unawaited(HapticFeedback.lightImpact());
       }
     }
+    _trackFinished(newRoom);
     notifyListeners();
+  }
+
+  /// 每局结束记一次战绩；再来一局（回到 playing）后重置，可再记下一局。
+  void _trackFinished(Room r) {
+    if (r.isPlaying) {
+      _countedFinished = false;
+      return;
+    }
+    if (!r.isFinished || _countedFinished) return;
+    _countedFinished = true;
+    final slot = mySlot;
+    if (slot < 0) return;
+    if (r.winner == slot) {
+      unawaited(StatsService.record(win: true, draw: false));
+    } else if (r.winner == null) {
+      unawaited(StatsService.record(win: false, draw: true));
+    } else {
+      unawaited(StatsService.record(win: false, draw: false));
+    }
   }
 
   int? _findNewStone(List<int> oldBoard, List<int> newBoard) {

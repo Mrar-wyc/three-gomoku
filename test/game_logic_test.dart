@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:three_gomoku/core/ai.dart';
 import 'package:three_gomoku/core/game_logic.dart';
+import 'package:three_gomoku/services/stats_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   test('横向五连获胜', () {
     final b = GameLogic.newBoard();
     for (int c = 5; c <= 9; c++) {
@@ -85,5 +88,32 @@ void main() {
 
     expect(GameLogic.longestLine(b, 1), 3);
     expect(GameLogic.winnerByLongestLine(b), isNull); // 三方并列
+  });
+
+  test('困难 AI 返回合法落点且能立即取胜', () {
+    final b = GameLogic.newBoard();
+    final idx1 = GomokuAI.bestMove(b, 1, difficulty: 'hard');
+    expect(b[idx1], GameLogic.empty);
+
+    final b2 = GameLogic.newBoard();
+    for (int c = 4; c <= 7; c++) {
+      b2[GameLogic.indexOf(10, c)] = 1;
+    }
+    final idx2 = GomokuAI.bestMove(b2, 1, difficulty: 'hard');
+    final a = GameLogic.indexOf(10, 3);
+    final z = GameLogic.indexOf(10, 8);
+    expect(idx2 == a || idx2 == z, isTrue);
+  });
+
+  test('战绩统计记录与读取', () async {
+    SharedPreferences.setMockInitialValues({});
+    await StatsService.record(win: true, draw: false);
+    await StatsService.record(win: false, draw: false);
+    await StatsService.record(win: false, draw: true);
+    final s = await StatsService.load();
+    expect(s.games, 3);
+    expect(s.wins, 1);
+    expect(s.draws, 1);
+    expect(s.losses, 1);
   });
 }

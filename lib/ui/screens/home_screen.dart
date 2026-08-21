@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/room_prefs.dart';
+import '../../services/stats_service.dart';
 import '../../state/local_game_controller.dart';
 import '../../state/room_controller.dart';
 import 'create_room_screen.dart';
@@ -18,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String? _savedCode;
   String? _savedName;
+  Stats? _stats;
 
   @override
   void initState() {
@@ -27,10 +29,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadPrefs() async {
     final (code, name) = await RoomPrefs.load();
+    final stats = await StatsService.load();
     if (!mounted) return;
     setState(() {
       _savedCode = code;
       _savedName = name;
+      _stats = stats;
     });
   }
 
@@ -77,6 +81,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () => Navigator.pop(ctx, 'medium'),
                   child: const Text('中等（攻守兼顾）'),
                 ),
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, 'hard'),
+                  child: const Text('困难（更深计算，AI 思考稍久）'),
+                ),
               ],
             ),
           ) ??
@@ -121,6 +129,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 '19 × 19 · 先连成五子者胜',
                 style: TextStyle(fontSize: 16, color: Colors.black54),
               ),
+              if (_stats != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '战绩：对局 ${_stats!.games} ｜ 胜 ${_stats!.wins} ｜ 负 ${_stats!.losses} ｜ 和 ${_stats!.draws}',
+                  style: const TextStyle(fontSize: 14, color: Colors.black54),
+                ),
+              ],
               const SizedBox(height: 32),
               if (_savedCode != null) ...[
                 SizedBox(
