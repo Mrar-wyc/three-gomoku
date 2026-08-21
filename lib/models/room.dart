@@ -27,6 +27,7 @@ class Room {
   bool get isPlaying => status == 'playing';
   bool get isFinished => status == 'finished';
   bool get isDraw => isFinished && winner == null;
+  bool get isBoardFull => !board.contains(GameLogic.empty);
 
   factory Room.fromJson(Map<String, dynamic> j) {
     final playersRaw = (j['players'] as List? ?? const []);

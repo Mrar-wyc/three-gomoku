@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/ai.dart';
@@ -25,6 +26,7 @@ class RoomController extends ChangeNotifier {
   Timer? _heartbeat;
   final Set<int> _takeOverInFlight = {};
   DateTime? _lastReclaimAt;
+  int? lastIndex;
 
   int get mySlot {
     final r = room;
@@ -77,6 +79,30 @@ class RoomController extends ChangeNotifier {
     }
   }
 
+  /// 应用新房间状态；若检测到新落子则触发音效/震动/动画标记。
+  void _applyRoom(Room newRoom) {
+    final old = room;
+    room = newRoom;
+    if (old != null) {
+      final idx = _findNewStone(old.board, newRoom.board);
+      if (idx != null) {
+        lastIndex = idx;
+        unawaited(SystemSound.play(SystemSoundType.click));
+        unawaited(HapticFeedback.lightImpact());
+      }
+    }
+    notifyListeners();
+  }
+
+  int? _findNewStone(List<int> oldBoard, List<int> newBoard) {
+    for (int i = 0; i < oldBoard.length && i < newBoard.length; i++) {
+      if (oldBoard[i] == GameLogic.empty && newBoard[i] != GameLogic.empty) {
+        return i;
+      }
+    }
+    return null;
+  }
+
   // ---------- 心跳 ----------
 
   void _startHeartbeat() {
@@ -112,8 +138,7 @@ class RoomController extends ChangeNotifier {
       ),
       callback: (payload) {
         final rec = payload.newRecord;
-        room = Room.fromJson(Map<String, dynamic>.from(rec));
-        notifyListeners();
+        _applyRoom(Room.fromJson(Map<String, dynamic>.from(rec)));
         _maybeReclaim();
         _checkOffline();
         _scheduleAiIfNeeded();
@@ -140,8 +165,7 @@ class RoomController extends ChangeNotifier {
     final idx = GameLogic.indexOf(row, col);
     if (r.board[idx] != GameLogic.empty) return;
     try {
-      room = await RoomService.submitMove(r.id, slot, row, col);
-      notifyListeners();
+      _applyRoom(await RoomService.submitMove(r.id, slot, row, col));
       _scheduleAiIfNeeded();
     } catch (_) {
       // 失败时 Realtime 会用服务端权威状态纠正。
@@ -171,13 +195,12 @@ class RoomController extends ChangeNotifier {
       }
       final idx = GomokuAI.bestMove(cur.board, slot + 1, difficulty: cur.aiDifficulty);
       try {
-        room = await RoomService.submitMove(
+        _applyRoom(await RoomService.submitMove(
           cur.id,
           slot,
           GameLogic.rowOf(idx),
           GameLogic.colOf(idx),
-        );
-        notifyListeners();
+        ));
         _scheduleAiIfNeeded();
       } catch (_) {}
     });
@@ -233,8 +256,7 @@ class RoomController extends ChangeNotifier {
     if (r == null) return;
     try {
       final rr = await RoomService.joinRoom(r.code, myName ?? '玩家');
-      room = rr;
-      notifyListeners();
+      _applyRoom(rr);
       _scheduleAiIfNeeded();
     } catch (_) {}
   }
@@ -245,8 +267,8 @@ class RoomController extends ChangeNotifier {
     final r = room;
     if (r == null) return;
     try {
-      room = await RoomService.resetRoom(r.id);
-      notifyListeners();
+      lastIndex = null;
+      _applyRoom(await RoomService.resetRoom(r.id));
       _scheduleAiIfNeeded();
     } catch (_) {}
   }

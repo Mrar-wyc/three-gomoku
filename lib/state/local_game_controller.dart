@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../core/ai.dart';
 import '../core/game_logic.dart';
@@ -59,12 +62,19 @@ class LocalGameController extends ChangeNotifier {
     next[idx] = slot + 1;
     board = next;
     lastIndex = idx;
+    unawaited(SystemSound.play(SystemSoundType.click));
+    unawaited(HapticFeedback.lightImpact());
 
     final w = GameLogic.winnerAfterMove(board, GameLogic.rowOf(idx), GameLogic.colOf(idx));
     if (w != null) {
       winner = w;
     } else if (GameLogic.isFull(board)) {
-      draw = true;
+      final w = GameLogic.winnerByLongestLine(board);
+      if (w != null) {
+        winner = w;
+      } else {
+        draw = true;
+      }
     } else {
       turn = (slot + 1) % 3;
     }

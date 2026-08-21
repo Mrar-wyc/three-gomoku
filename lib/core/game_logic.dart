@@ -40,4 +40,41 @@ class GameLogic {
     }
     return null;
   }
+
+  /// 某方最长连续同色子（横/竖/斜四方向，封顶 5）。
+  static int longestLine(List<int> board, int stone) {
+    int best = 0;
+    const dirs = [
+      [0, 1], [1, 0], [1, 1], [1, -1],
+    ];
+    for (int r = 0; r < size; r++) {
+      for (int c = 0; c < size; c++) {
+        if (board[indexOf(r, c)] != stone) continue;
+        for (final d in dirs) {
+          int cnt = 1;
+          int rr = r + d[0];
+          int cc = c + d[1];
+          while (inBounds(rr, cc) && board[indexOf(rr, cc)] == stone) {
+            cnt++;
+            rr += d[0];
+            cc += d[1];
+          }
+          if (cnt >= 5) return 5;
+          if (cnt > best) best = cnt;
+        }
+      }
+    }
+    return best;
+  }
+
+  /// 满盘判胜：唯一最长连子者胜（返回座位号 0..2），并列返回 null。
+  static int? winnerByLongestLine(List<int> board) {
+    final l1 = longestLine(board, 1);
+    final l2 = longestLine(board, 2);
+    final l3 = longestLine(board, 3);
+    if (l1 > l2 && l1 > l3) return 0;
+    if (l2 > l1 && l2 > l3) return 1;
+    if (l3 > l1 && l3 > l2) return 2;
+    return null;
+  }
 }

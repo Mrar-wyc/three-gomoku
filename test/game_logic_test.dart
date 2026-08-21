@@ -52,4 +52,38 @@ void main() {
     expect(blocks.contains(medium), isTrue, reason: '中等难度应封堵活三');
     expect(blocks.contains(easy), isFalse, reason: '简单难度不防守');
   });
+
+  test('满盘判胜：唯一最长连子者胜', () {
+    final b = GameLogic.newBoard();
+    // 黑 3 连
+    b[GameLogic.indexOf(5, 5)] = 1;
+    b[GameLogic.indexOf(5, 6)] = 1;
+    b[GameLogic.indexOf(5, 7)] = 1;
+    // 白 4 连
+    for (int c = 2; c <= 5; c++) {
+      b[GameLogic.indexOf(10, c)] = 2;
+    }
+    // 红 2 连
+    b[GameLogic.indexOf(15, 15)] = 3;
+    b[GameLogic.indexOf(15, 16)] = 3;
+
+    expect(GameLogic.longestLine(b, 2), 4);
+    expect(GameLogic.winnerByLongestLine(b), 1); // 白(stone 2) → 座位 1
+  });
+
+  test('满盘并列最长 → 和棋', () {
+    final b = GameLogic.newBoard();
+    b[GameLogic.indexOf(5, 5)] = 1;
+    b[GameLogic.indexOf(5, 6)] = 1;
+    b[GameLogic.indexOf(5, 7)] = 1;
+    b[GameLogic.indexOf(10, 2)] = 2;
+    b[GameLogic.indexOf(10, 3)] = 2;
+    b[GameLogic.indexOf(10, 4)] = 2;
+    b[GameLogic.indexOf(15, 15)] = 3;
+    b[GameLogic.indexOf(15, 16)] = 3;
+    b[GameLogic.indexOf(15, 17)] = 3;
+
+    expect(GameLogic.longestLine(b, 1), 3);
+    expect(GameLogic.winnerByLongestLine(b), isNull); // 三方并列
+  });
 }

@@ -17,6 +17,7 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   RoomController get c => widget.controller;
+  bool _prevFinished = false;
 
   @override
   void initState() {
@@ -36,6 +37,46 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       c.ping();
     }
+  }
+
+  String _resultText(Room room) {
+    if (room.isDraw) {
+      return room.isBoardFull ? '满盘和棋（并列最长）' : '和棋！';
+    }
+    final name = GomokuPalette.name[room.winner! + 1];
+    return room.isBoardFull ? '满盘判胜 · $name（最长连子）' : '$name 获胜！';
+  }
+
+  void _checkResult(Room? room) {
+    final finished = room != null && room.isFinished;
+    if (finished && !_prevFinished) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showResult(room));
+    }
+    _prevFinished = finished;
+  }
+
+  Future<void> _showResult(Room room) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_resultText(room)),
+        content: const Text('本局结束'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              c.rematch();
+            },
+            child: const Text('再来一局'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _back() async {
@@ -64,6 +105,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
       listenable: c,
       builder: (context, _) {
         final room = c.room;
+        _checkResult(room);
         return Scaffold(
           appBar: AppBar(
             title: Text(room == null ? '房间' : '房间 ${room.code}'),
@@ -146,6 +188,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
             padding: const EdgeInsets.all(8),
             child: BoardWidget(
               board: room.board,
+              lastIndex: c.lastIndex,
               onTap: c.submitMove,
               enabled: c.isMyTurn,
             ),
@@ -159,9 +202,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   Widget _statusLine(Room room) {
     String text;
     if (room.isFinished) {
-      text = room.isDraw
-          ? '和棋！'
-          : '${GomokuPalette.name[room.winner! + 1]} 获胜！';
+      text = _resultText(room);
     } else if (room.turn < 0 || room.turn > 2) {
       text = '等待中…';
     } else {
