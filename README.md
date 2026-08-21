@@ -53,9 +53,25 @@ flutter run
 
 ## 通过 GitHub 打包 APK
 
-1. 把本项目推到 GitHub 仓库（推之前确认已改好 app_config.dart）。
-2. push 到 main 分支会自动触发构建；也可在仓库 Actions 页手动运行，或打 v 开头的 tag 自动发布到 Release。
-3. 构建完成后，到 Actions → 最近一次构建 → Artifacts 下载 three-gomoku-apk；打 tag 的会直接附在 Release 里。
+1. 推代码到 main 分支自动构建；也可在仓库 Actions 页手动运行（workflow_dispatch）。
+2. 下载：Actions → 最近一次构建 → Artifacts → three-gomoku-apk。
+
+### 发布新版本（打 tag）
+
+1. 在 pubspec.yaml 里把 version 升一档（如 1.3.0+4）。
+2. 提交推送后打 tag 并推送：
+
+~~~
+git tag v1.3.0
+git push origin v1.3.0
+~~~
+
+3. Actions 构建完成后，APK 会自动附在该 tag 的 Release 里，朋友可直接下载安装。
+
+### 签名说明
+
+- 当前使用 debug 签名：CI 每次构建用同一 keystore、签名一致，新版本可直接覆盖安装旧版，无需卸载。
+- 未来若要上架应用商店，需换正式 keystore（届时再配置，代码无需改动）。
 
 安装 APK：把 APK 传到手机点击安装（需允许「未知来源」）。
 
