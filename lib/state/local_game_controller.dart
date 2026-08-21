@@ -20,9 +20,11 @@ class LocalGameController extends ChangeNotifier {
   bool aiThinking = false;
   int? lastIndex;
   int _aiCount = 0;
+  String _difficulty = 'medium';
 
-  void start(int aiCount) {
+  void start(int aiCount, {String difficulty = 'medium'}) {
     _aiCount = aiCount;
+    _difficulty = difficulty;
     board = GameLogic.newBoard();
     players = [
       const LocalPlayer(0, '黑方', false),
@@ -33,11 +35,12 @@ class LocalGameController extends ChangeNotifier {
     winner = null;
     draw = false;
     aiThinking = false;
+    lastIndex = null;
     notifyListeners();
     _maybeAi();
   }
 
-  void restart() => start(_aiCount);
+  void restart() => start(_aiCount, difficulty: _difficulty);
 
   bool get isFinished => winner != null || draw;
 
@@ -80,7 +83,7 @@ class LocalGameController extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      final idx = GomokuAI.bestMove(board, turn + 1);
+      final idx = GomokuAI.bestMove(board, turn + 1, difficulty: _difficulty);
       aiThinking = false;
       _apply(turn, idx);
     });

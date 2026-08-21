@@ -46,14 +46,16 @@ create or replace function public.gen_room_code()
 returns text language plpgsql as $$
 declare
   chars constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; -- 去掉 I/O/0/1 易混淆
-  code text;
+  v_code text;
 begin
   loop
-    select string_agg(substr(chars, 1 + floor(random()*length(chars))::int, 1), '')
-      into code from generate_series(1, 6);
-    exit when not exists (select 1 from public.rooms r where r.code = code);
+    v_code := '';
+    for i in 1..6 loop
+      v_code := v_code || substr(chars, 1 + floor(random() * length(chars))::int, 1);
+    end loop;
+    exit when not exists (select 1 from public.rooms r where r.code = v_code);
   end loop;
-  return code;
+  return v_code;
 end $$;
 
 -- ---------- 工具：五子连线判定 ----------

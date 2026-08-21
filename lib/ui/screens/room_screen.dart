@@ -15,13 +15,27 @@ class RoomScreen extends StatefulWidget {
   State<RoomScreen> createState() => _RoomScreenState();
 }
 
-class _RoomScreenState extends State<RoomScreen> {
+class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   RoomController get c => widget.controller;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     c.leave();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      c.ping();
+    }
   }
 
   Future<void> _back() async {
@@ -162,19 +176,33 @@ class _RoomScreenState extends State<RoomScreen> {
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          ),
+          if (room.isFinished)
+            FilledButton.tonal(
+              onPressed: c.rematch,
+              child: const Text('再来一局'),
+            ),
+        ],
+      ),
     );
   }
 
   List<PlayerInfo> _info(Room room) {
+    final now = DateTime.now();
     return room.players.map((p) {
       final stone = p.slot + 1;
       final String label;
       if (p.isAi) {
-        label = 'AI';
+        label = p.takenOver ? 'AI托管' : 'AI';
       } else if (p.isEmpty) {
         label = '待加入';
-      } else if (p.connected) {
+      } else if (p.lastSeen != null &&
+          now.difference(p.lastSeen!) < const Duration(seconds: 30)) {
         label = '在线';
       } else {
         label = '离线';

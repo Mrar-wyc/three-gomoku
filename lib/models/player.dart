@@ -4,6 +4,8 @@ class Player {
   final bool isAi;
   final String? uid;
   final bool connected;
+  final DateTime? lastSeen;
+  final bool takenOver;
 
   const Player({
     required this.slot,
@@ -11,6 +13,8 @@ class Player {
     this.isAi = false,
     this.uid,
     this.connected = false,
+    this.lastSeen,
+    this.takenOver = false,
   });
 
   bool get isEmpty => !isAi && uid == null;
@@ -23,5 +27,9 @@ class Player {
         isAi: j['is_ai'] as bool? ?? false,
         uid: j['uid'] as String?,
         connected: j['connected'] as bool? ?? false,
+        lastSeen: j['last_seen'] is String
+            ? DateTime.tryParse((j['last_seen'] as String).replaceFirst(' ', 'T'))
+            : null,
+        takenOver: j['taken_over'] as bool? ?? false,
       );
 }

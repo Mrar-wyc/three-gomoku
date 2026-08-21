@@ -15,10 +15,10 @@ class RoomService {
     return Room.fromJson(map);
   }
 
-  static Future<Room> createRoom(String name, int aiCount) async {
+  static Future<Room> createRoom(String name, int aiCount, {String difficulty = 'medium'}) async {
     final data = await SupabaseService.client.rpc(
       'create_room',
-      params: {'player_name': name, 'ai_count': aiCount},
+      params: {'player_name': name, 'ai_count': aiCount, 'ai_difficulty': difficulty},
     );
     return _parse(data);
   }
@@ -50,6 +50,22 @@ class RoomService {
   static Future<Room> leaveRoom(String roomId) async {
     final data = await SupabaseService.client.rpc(
       'leave_room',
+      params: {'room_id': roomId},
+    );
+    return _parse(data);
+  }
+
+  static Future<Room> takeOver(String roomId, int slot) async {
+    final data = await SupabaseService.client.rpc(
+      'take_over',
+      params: {'room_id': roomId, 'slot': slot},
+    );
+    return _parse(data);
+  }
+
+  static Future<Room> resetRoom(String roomId) async {
+    final data = await SupabaseService.client.rpc(
+      'reset_room',
       params: {'room_id': roomId},
     );
     return _parse(data);

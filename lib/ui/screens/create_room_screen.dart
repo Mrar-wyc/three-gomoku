@@ -13,6 +13,7 @@ class CreateRoomScreen extends StatefulWidget {
 class _CreateRoomScreenState extends State<CreateRoomScreen> {
   final _name = TextEditingController(text: '玩家');
   int _aiCount = 0;
+  String _difficulty = 'medium';
   bool _busy = false;
 
   @override
@@ -26,7 +27,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
     if (name.isEmpty) return;
     setState(() => _busy = true);
     final c = RoomController();
-    final ok = await c.create(name, _aiCount);
+    final ok = await c.create(name, _aiCount, difficulty: _difficulty);
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) {
@@ -67,6 +68,19 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
               selected: {_aiCount},
               onSelectionChanged: (s) => setState(() => _aiCount = s.first),
             ),
+            if (_aiCount > 0) ...[
+              const SizedBox(height: 16),
+              const Text('AI 难度', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'easy', label: Text('简单')),
+                  ButtonSegment(value: 'medium', label: Text('中等')),
+                ],
+                selected: {_difficulty},
+                onSelectionChanged: (s) => setState(() => _difficulty = s.first),
+              ),
+            ],
             const SizedBox(height: 12),
             const Text(
               '房主为黑方；AI 依次顶替白方、红方。创建后得到 6 位房间号，发给朋友即可加入。',

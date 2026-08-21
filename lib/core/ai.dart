@@ -2,18 +2,21 @@ import 'game_logic.dart';
 
 /// 五子棋 AI：启发式评分 + 攻守加权。
 /// 三人局关键差异：同时评估两个对手的威胁，防守分取二者最大值。
+/// 难度：easy=只进攻（除立即取胜/封堵外不防守）；medium=攻守兼顾（默认）。
 class GomokuAI {
   static const int _win = 1000000;
   static const int _attackWeight = 10;
-  static const int _defenseWeight = 9;
+  static const int _defenseWeightMedium = 9;
+  static const int _defenseWeightEasy = 0;
 
   /// 返回最佳落点索引；stone 取值 1..3。
-  static int bestMove(List<int> board, int stone) {
+  static int bestMove(List<int> board, int stone, {String difficulty = 'medium'}) {
     final candidates = _candidates(board);
     if (candidates.isEmpty) {
       return GameLogic.indexOf(GameLogic.size ~/ 2, GameLogic.size ~/ 2);
     }
 
+    final defenseWeight = difficulty == 'easy' ? _defenseWeightEasy : _defenseWeightMedium;
     final opps = [1, 2, 3].where((s) => s != stone).toList();
     int bestIdx = candidates.first;
     int bestScore = -1;
@@ -23,7 +26,7 @@ class GomokuAI {
       final col = GameLogic.colOf(idx);
       final my = _scoreAt(board, row, col, stone);
 
-      // 自己能立即连五，直接取胜。
+      // 自己能立即连五，直接取胜（两档难度都执行）。
       if (my >= _win) return idx;
 
       int maxOpp = 0;
@@ -32,7 +35,14 @@ class GomokuAI {
         if (s > maxOpp) maxOpp = s;
       }
 
-      final total = my * _attackWeight + maxOpp * _defenseWeight;
+      // 对手下一步能连五，必须封堵（两档难度都执行）。
+      final int total;
+      if (maxOpp >= _win) {
+        total = _win + my;
+      } else {
+        total = my * _attackWeight + maxOpp * defenseWeight;
+      }
+
       if (total > bestScore) {
         bestScore = total;
         bestIdx = idx;

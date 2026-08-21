@@ -10,6 +10,7 @@ class Room {
   final int turn; // 当前回合座位 0/1/2，-1 表示已结束
   final String status; // waiting / playing / finished
   final int? winner; // 胜者座位 0/1/2；null = 未定或和棋
+  final String aiDifficulty; // easy / medium
 
   const Room({
     required this.id,
@@ -20,6 +21,7 @@ class Room {
     required this.turn,
     required this.status,
     this.winner,
+    this.aiDifficulty = 'medium',
   });
 
   bool get isPlaying => status == 'playing';
@@ -49,6 +51,7 @@ class Room {
       turn: j['turn'] as int? ?? 0,
       status: j['status'] as String? ?? 'waiting',
       winner: j['winner'] as int?,
+      aiDifficulty: j['ai_difficulty'] as String? ?? 'medium',
     );
   }
 }

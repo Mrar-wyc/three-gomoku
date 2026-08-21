@@ -37,4 +37,19 @@ void main() {
     final z = GameLogic.indexOf(10, 8);
     expect(idx == a || idx == z, isTrue);
   });
+
+  test('中等难度封堵对手活三，简单难度不封堵', () {
+    final b = GameLogic.newBoard();
+    // 白方(stone 2)在 (9,5),(9,6),(9,7) 形成活三
+    b[GameLogic.indexOf(9, 5)] = 2;
+    b[GameLogic.indexOf(9, 6)] = 2;
+    b[GameLogic.indexOf(9, 7)] = 2;
+    final blocks = {GameLogic.indexOf(9, 4), GameLogic.indexOf(9, 8)};
+
+    final medium = GomokuAI.bestMove(b, 1);
+    final easy = GomokuAI.bestMove(b, 1, difficulty: 'easy');
+
+    expect(blocks.contains(medium), isTrue, reason: '中等难度应封堵活三');
+    expect(blocks.contains(easy), isFalse, reason: '简单难度不防守');
+  });
 }
