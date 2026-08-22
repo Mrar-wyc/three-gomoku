@@ -14,6 +14,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
   final _name = TextEditingController(text: '玩家');
   int _aiCount = 0;
   String _difficulty = 'medium';
+  int? _timeoutSec = 60;
   bool _busy = false;
 
   @override
@@ -27,7 +28,8 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
     if (name.isEmpty) return;
     setState(() => _busy = true);
     final c = RoomController();
-    final ok = await c.create(name, _aiCount, difficulty: _difficulty);
+    final ok = await c.create(name, _aiCount,
+        difficulty: _difficulty, turnTimeoutSec: _timeoutSec);
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) {
@@ -82,9 +84,22 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
                 onSelectionChanged: (s) => setState(() => _difficulty = s.first),
               ),
             ],
+            const SizedBox(height: 16),
+            const Text('每步限时', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            SegmentedButton<int?>(
+              segments: const [
+                ButtonSegment(value: null, label: Text('不限时')),
+                ButtonSegment(value: 30, label: Text('30 秒')),
+                ButtonSegment(value: 60, label: Text('60 秒')),
+                ButtonSegment(value: 120, label: Text('120 秒')),
+              ],
+              selected: {_timeoutSec},
+              onSelectionChanged: (s) => setState(() => _timeoutSec = s.first),
+            ),
             const SizedBox(height: 12),
             const Text(
-              '房主为黑方；AI 依次顶替白方、红方。创建后得到 6 位房间号，发给朋友即可加入。',
+              '房主为黑方；AI 依次顶替白方、红方。创建后得到 6 位房间号，发给朋友即可加入。超时后由 AI 代下一手。',
               style: TextStyle(fontSize: 13, color: Colors.black54),
             ),
             const SizedBox(height: 24),

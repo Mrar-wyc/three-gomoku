@@ -1,9 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 
 import '../core/ai.dart';
+import '../core/feedback.dart';
 import '../core/game_logic.dart';
 
 class LocalPlayer {
@@ -62,8 +60,7 @@ class LocalGameController extends ChangeNotifier {
     next[idx] = slot + 1;
     board = next;
     lastIndex = idx;
-    unawaited(SystemSound.play(SystemSoundType.click));
-    unawaited(HapticFeedback.lightImpact());
+    MoveFeedback.play();
 
     final w = GameLogic.winnerAfterMove(board, GameLogic.rowOf(idx), GameLogic.colOf(idx));
     if (w != null) {

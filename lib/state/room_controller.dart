@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/ai.dart';
+import '../core/feedback.dart';
 import '../core/game_logic.dart';
+import '../models/chat_message.dart';
 import '../models/room.dart';
+import '../services/chat_service.dart';
 import '../services/room_prefs.dart';
 import '../services/room_service.dart';
 import '../services/stats_service.dart';
@@ -28,7 +30,12 @@ class RoomController extends ChangeNotifier {
   final Set<int> _takeOverInFlight = {};
   DateTime? _lastReclaimAt;
   int? lastIndex;
+  Duration? remaining;
+  String? timeoutMessage;
+  Timer? _countdown;
+  bool _timeoutInFlight = false;
   bool _countedFinished = false;
+  List<ChatMessage> messages = [];
 
   int get mySlot {
     final r = room;
@@ -44,16 +51,19 @@ class RoomController extends ChangeNotifier {
     return r.turn == slot && !r.players[slot].isAi;
   }
 
-  Future<bool> create(String name, int aiCount, {String difficulty = 'medium'}) =>
+  Future<bool> create(String name, int aiCount,
+      {String difficulty = 'medium', int? turnTimeoutSec}) =>
       _run(() async {
         myUid = await SupabaseService.ensureSignedIn();
         myName = name;
-        room = await RoomService.createRoom(name, aiCount, difficulty: difficulty);
+        room = await RoomService.createRoom(name, aiCount,
+            difficulty: difficulty, turnTimeoutSec: turnTimeoutSec);
         _countedFinished = room!.isFinished;
         await RoomPrefs.save(room!.code, name);
         await _subscribe();
         _startHeartbeat();
         _scheduleAiIfNeeded();
+        await _loadChatHistory();
       });
 
   Future<bool> join(String code, String name) => _run(() async {
@@ -65,6 +75,7 @@ class RoomController extends ChangeNotifier {
         await _subscribe();
         _startHeartbeat();
         _scheduleAiIfNeeded();
+        await _loadChatHistory();
       });
 
   Future<bool> _run(Future<void> Function() fn) async {
@@ -91,11 +102,11 @@ class RoomController extends ChangeNotifier {
       final idx = _findNewStone(old.board, newRoom.board);
       if (idx != null) {
         lastIndex = idx;
-        unawaited(SystemSound.play(SystemSoundType.click));
-        unawaited(HapticFeedback.lightImpact());
+        MoveFeedback.play();
       }
     }
     _trackFinished(newRoom);
+    _syncCountdown();
     notifyListeners();
   }
 
@@ -125,6 +136,99 @@ class RoomController extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  // ---------- 回合计时 ----------
+
+  /// 根据房间状态启停倒计时：playing 且当前回合为人座且有限时 → 每秒刷新 remaining。
+  void _syncCountdown() {
+    final r = room;
+    final active = r != null &&
+        r.isPlaying &&
+        r.moveDeadline != null &&
+        r.turn >= 0 &&
+        r.turn <= 2 &&
+        !r.players[r.turn].isAi;
+    if (!active) {
+      if (remaining != null || _countdown != null) {
+        remaining = null;
+        _countdown?.cancel();
+        _countdown = null;
+        notifyListeners();
+      }
+      return;
+    }
+    _countdown ??= Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _tickCountdown(),
+    );
+    _tickCountdown();
+  }
+
+  void _tickCountdown() {
+    final r = room;
+    if (r == null || !r.isPlaying) {
+      remaining = null;
+      _countdown?.cancel();
+      _countdown = null;
+      notifyListeners();
+      return;
+    }
+    final dl = r.moveDeadline;
+    if (dl == null) {
+      remaining = null;
+      _countdown?.cancel();
+      _countdown = null;
+      notifyListeners();
+      return;
+    }
+    final left = dl.difference(DateTime.now());
+    if (left <= Duration.zero) {
+      remaining = Duration.zero;
+      notifyListeners();
+      _handleTimeout(r);
+      return;
+    }
+    if (remaining == null || remaining!.inSeconds != left.inSeconds) {
+      remaining = left;
+      notifyListeners();
+    }
+  }
+
+  /// 超时：任何成员均可代该座落子（AI 计算在本地，服务端校验截止时间）。
+  Future<void> _handleTimeout(Room r) async {
+    if (_timeoutInFlight) return;
+    if (!r.isPlaying || r.turn < 0 || r.turn > 2) return;
+    if (r.players[r.turn].isAi) return;
+    final dl = r.moveDeadline;
+    if (dl != null && dl.isAfter(DateTime.now())) return;
+    _timeoutInFlight = true;
+    try {
+      final slot = r.turn;
+      final idx = GomokuAI.bestMove(r.board, slot + 1, difficulty: r.aiDifficulty);
+      final rr = await RoomService.submitMove(
+        r.id,
+        slot,
+        GameLogic.rowOf(idx),
+        GameLogic.colOf(idx),
+        asTimeoutAi: true,
+      );
+      _applyRoom(rr);
+      timeoutMessage = '${r.players[slot].displayName} 超时，AI 代下一手';
+      notifyListeners();
+      _scheduleAiIfNeeded();
+    } catch (_) {
+      // 竞争失败/校验拒绝：忽略，Realtime 会带来权威状态
+    } finally {
+      _timeoutInFlight = false;
+    }
+  }
+
+  void clearTimeoutMessage() {
+    if (timeoutMessage != null) {
+      timeoutMessage = null;
+      notifyListeners();
+    }
   }
 
   // ---------- 心跳 ----------
@@ -167,6 +271,25 @@ class RoomController extends ChangeNotifier {
         _checkOffline();
         _scheduleAiIfNeeded();
       },
+    );
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'messages',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'room_id',
+        value: r.id,
+      ),
+      callback: (payload) {
+        final m = ChatMessage.fromJson(Map<String, dynamic>.from(payload.newRecord));
+        if (messages.any((x) => x.id == m.id)) return;
+        messages = [...messages, m];
+        if (messages.length > 100) {
+          messages = messages.sublist(messages.length - 100);
+        }
+        notifyListeners();
+      },
     ).subscribe();
     _channel = ch;
   }
@@ -193,6 +316,31 @@ class RoomController extends ChangeNotifier {
       _scheduleAiIfNeeded();
     } catch (_) {
       // 失败时 Realtime 会用服务端权威状态纠正。
+    }
+  }
+
+  // ---------- 聊天 ----------
+
+  Future<void> _loadChatHistory() async {
+    final r = room;
+    if (r == null) return;
+    try {
+      messages = await ChatService.history(r.id);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// 发送聊天消息；内容非法或失败返回 false。
+  Future<bool> sendChat(String body) async {
+    final r = room;
+    if (r == null) return false;
+    final b = body.trim();
+    if (b.isEmpty || b.length > 200) return false;
+    try {
+      await ChatService.send(r.id, b);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -303,6 +451,9 @@ class RoomController extends ChangeNotifier {
     final r = room;
     _heartbeat?.cancel();
     _heartbeat = null;
+    _countdown?.cancel();
+    _countdown = null;
+    remaining = null;
     await _unsubscribe();
     if (r != null) {
       try {
@@ -311,12 +462,15 @@ class RoomController extends ChangeNotifier {
     }
     await RoomPrefs.clear();
     room = null;
+    messages = [];
     notifyListeners();
   }
 
   @override
   void dispose() {
     _heartbeat?.cancel();
+    _countdown?.cancel();
+    _countdown = null;
     _unsubscribe();
     super.dispose();
   }

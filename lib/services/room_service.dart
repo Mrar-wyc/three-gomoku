@@ -15,10 +15,16 @@ class RoomService {
     return Room.fromJson(map);
   }
 
-  static Future<Room> createRoom(String name, int aiCount, {String difficulty = 'medium'}) async {
+  static Future<Room> createRoom(String name, int aiCount,
+      {String difficulty = 'medium', int? turnTimeoutSec}) async {
     final data = await SupabaseService.client.rpc(
       'create_room',
-      params: {'player_name': name, 'ai_count': aiCount, 'ai_difficulty': difficulty},
+      params: {
+        'player_name': name,
+        'ai_count': aiCount,
+        'ai_difficulty': difficulty,
+        'turn_timeout_sec': turnTimeoutSec,
+      },
     );
     return _parse(data);
   }
@@ -31,10 +37,17 @@ class RoomService {
     return _parse(data);
   }
 
-  static Future<Room> submitMove(String roomId, int slot, int row, int col) async {
+  static Future<Room> submitMove(String roomId, int slot, int row, int col,
+      {bool asTimeoutAi = false}) async {
     final data = await SupabaseService.client.rpc(
       'submit_move',
-      params: {'room_id': roomId, 'slot': slot, 'rrow': row, 'ccol': col},
+      params: {
+        'room_id': roomId,
+        'slot': slot,
+        'rrow': row,
+        'ccol': col,
+        'as_timeout_ai': asTimeoutAi,
+      },
     );
     return _parse(data);
   }

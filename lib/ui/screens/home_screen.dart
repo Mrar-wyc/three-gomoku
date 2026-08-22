@@ -8,6 +8,8 @@ import 'create_room_screen.dart';
 import 'join_room_screen.dart';
 import 'local_game_screen.dart';
 import 'room_screen.dart';
+import 'settings_screen.dart';
+import 'stats_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -118,7 +120,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('三人五子棋'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('三人五子棋'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '设置',
+            onPressed: () => _push(const SettingsScreen()),
+          ),
+        ],
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -131,9 +143,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               if (_stats != null) ...[
                 const SizedBox(height: 8),
-                Text(
-                  '战绩：对局 ${_stats!.games} ｜ 胜 ${_stats!.wins} ｜ 负 ${_stats!.losses} ｜ 和 ${_stats!.draws}',
-                  style: const TextStyle(fontSize: 14, color: Colors.black54),
+                InkWell(
+                  onTap: () => _push(const StatsScreen()),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      '战绩：对局 ${_stats!.games} ｜ 胜 ${_stats!.wins} ｜ 负 ${_stats!.losses} ｜ 和 ${_stats!.draws} · 详情 ›',
+                      style: const TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(height: 32),

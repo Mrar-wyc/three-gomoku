@@ -10,7 +10,9 @@ class Room {
   final int turn; // 当前回合座位 0/1/2，-1 表示已结束
   final String status; // waiting / playing / finished
   final int? winner; // 胜者座位 0/1/2；null = 未定或和棋
-  final String aiDifficulty; // easy / medium
+  final String aiDifficulty; // easy / medium / hard
+  final int? turnTimeoutSec; // 每步限时秒数；null = 不限时
+  final DateTime? moveDeadline; // 当前回合截止时间；null = 不适用
 
   const Room({
     required this.id,
@@ -22,6 +24,8 @@ class Room {
     required this.status,
     this.winner,
     this.aiDifficulty = 'medium',
+    this.turnTimeoutSec,
+    this.moveDeadline,
   });
 
   bool get isPlaying => status == 'playing';
@@ -53,6 +57,18 @@ class Room {
       status: j['status'] as String? ?? 'waiting',
       winner: j['winner'] as int?,
       aiDifficulty: j['ai_difficulty'] as String? ?? 'medium',
+      turnTimeoutSec: j['turn_timeout_sec'] as int?,
+      moveDeadline: _parseTs(j['move_deadline']),
     );
+  }
+
+  static DateTime? _parseTs(dynamic v) {
+    if (v is! String) return null;
+    try {
+      // Postgres 返回 "2025-01-01 12:00:00+00"，需补 T 才能被 DateTime.parse 接受
+      return DateTime.parse(v.replaceFirst(' ', 'T'));
+    } catch (_) {
+      return null;
+    }
   }
 }

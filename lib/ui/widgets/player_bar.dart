@@ -7,12 +7,14 @@ class PlayerInfo {
   final int stone; // 1..3
   final bool isTurn;
   final String statusLabel;
+  final Duration? remaining; // 当前回合人座的倒计时
 
   const PlayerInfo({
     required this.name,
     required this.stone,
     this.isTurn = false,
     this.statusLabel = '',
+    this.remaining,
   });
 }
 
@@ -77,8 +79,26 @@ class PlayerBar extends StatelessWidget {
               style: const TextStyle(fontSize: 11, color: Colors.black54),
             ),
           ],
+          if (p.isTurn && p.remaining != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              '⏱ ${_fmt(p.remaining!)}',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: p.remaining!.inSeconds <= 10
+                    ? Colors.red
+                    : Colors.black54,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  static String _fmt(Duration d) {
+    final s = d.inSeconds < 0 ? 0 : d.inSeconds;
+    return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
   }
 }

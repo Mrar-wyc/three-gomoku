@@ -4,6 +4,7 @@ import '../../core/constants.dart';
 import '../../models/room.dart';
 import '../../state/room_controller.dart';
 import '../widgets/board_widget.dart';
+import '../widgets/chat_panel.dart';
 import '../widgets/player_bar.dart';
 
 class RoomScreen extends StatefulWidget {
@@ -79,6 +80,14 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _openChat() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ChatPanel(controller: c),
+    );
+  }
+
   Future<void> _back() async {
     final room = c.room;
     if (room != null && room.isFinished) {
@@ -106,6 +115,14 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
       builder: (context, _) {
         final room = c.room;
         _checkResult(room);
+        final msg = c.timeoutMessage;
+        if (msg != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || c.timeoutMessage == null) return;
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+            c.clearTimeoutMessage();
+          });
+        }
         return Scaffold(
           appBar: AppBar(
             title: Text(room == null ? '房间' : '房间 ${room.code}'),
@@ -113,6 +130,13 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               icon: const Icon(Icons.arrow_back),
               onPressed: _back,
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.chat_bubble_outline),
+                tooltip: '房间聊天',
+                onPressed: _openChat,
+              ),
+            ],
           ),
           body: _buildBody(room),
         );
@@ -253,6 +277,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
         stone: stone,
         isTurn: room.turn == p.slot,
         statusLabel: label,
+        remaining: (!p.isAi && room.turn == p.slot) ? c.remaining : null,
       );
     }).toList();
   }

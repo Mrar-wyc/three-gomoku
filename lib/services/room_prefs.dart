@@ -11,6 +11,12 @@ class RoomPrefs {
     await p.setString(_nameKey, name);
   }
 
+  /// 只更新昵称（保留当前房间号，用于设置页改名）。
+  static Future<void> saveName(String name) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_nameKey, name);
+  }
+
   static Future<(String?, String?)> load() async {
     final p = await SharedPreferences.getInstance();
     return (p.getString(_codeKey), p.getString(_nameKey));
