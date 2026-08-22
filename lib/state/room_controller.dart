@@ -542,7 +542,10 @@ class RoomController extends ChangeNotifier {
       lastIndex = null;
       _applyRoom(await RoomService.resetRoom(r.id));
       _scheduleAiIfNeeded();
-    } catch (_) {}
+    } catch (e) {
+      undoMessage = '再来一局失败：${_friendlyError(e)}';
+      notifyListeners();
+    }
   }
 
   // ---------- 离开 ----------

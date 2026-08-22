@@ -9,5 +9,7 @@
 | Phase 2 | [phase-2-联机功能.md](phase-2-联机功能.md) | Supabase 联机：建房/加入/Realtime/掉线托管/重连/再来一局 |
 | Phase 3 | [phase-3-判胜与体验.md](phase-3-判胜与体验.md) | 满盘最长连子判胜、困难 AI、联机战绩、图标与版本发布 |
 | Phase 4 | [phase-4-联机体验增强.md](phase-4-联机体验增强.md) | 战绩详情页+设置、房间聊天、回合计时与超时托管 |
+| Phase 5 | [phase-5-悔棋复盘与体验优化.md](phase-5-悔棋复盘与体验优化.md) | 悔棋、复盘回放、胜利连线高亮、体验优化 |
+| 专属 Skill | [skill-android-flutter-playbook.md](skill-android-flutter-playbook.md) | 项目复盘沉淀的 Android 开发手册（已安装到 ~/.dsh/skills 全局生效） |
 
 > 里程碑节奏：每阶段内按里程碑小步快跑，每个里程碑出一个 release APK，真机验证通过后进入下一个。
