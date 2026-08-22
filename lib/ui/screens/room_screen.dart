@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/constants.dart';
 import '../../models/room.dart';
@@ -80,6 +81,73 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
     );
   }
 
+  bool _prevUndoVoteShown = false;
+
+  /// pending 升起且我是投票者 → 弹同意窗（只弹一次）。
+  void _checkUndo() {
+    final voteNeeded = c.iAmUndoVoter;
+    if (voteNeeded && !_prevUndoVoteShown) {
+      _prevUndoVoteShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && c.iAmUndoVoter) _showUndoDialog();
+      });
+    }
+    if (!voteNeeded) _prevUndoVoteShown = false;
+  }
+
+  Future<void> _showUndoDialog() async {
+    final r = c.room;
+    if (r == null || !mounted) return;
+    final requester = (r.undoSenderSlot != null && r.undoSenderSlot! >= 0 && r.undoSenderSlot! <= 2)
+        ? r.players[r.undoSenderSlot!].displayName
+        : '某玩家';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('悔棋请求'),
+        content: Text('「$requester」想悔棋（撤销他刚下的最后一步），是否同意？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('拒绝')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('同意')),
+        ],
+      ),
+    );
+    if (ok == null || !mounted) return;
+    await c.respondUndo(ok);
+  }
+
+  /// pending 横幅：发起者显示等待+取消；投票者/其他显示提示。
+  Widget _undoBanner() {
+    final r = c.room;
+    final requester = (r != null && r.undoSenderSlot != null && r.undoSenderSlot! >= 0 && r.undoSenderSlot! <= 2)
+        ? r.players[r.undoSenderSlot!].displayName
+        : '某玩家';
+    final String text;
+    if (c.iAmUndoRequester) {
+      text = '等待其他玩家同意悔棋…（30 秒内有效）';
+    } else if (c.iAmUndoVoter) {
+      text = '$requester 请求悔棋，请选择同意或拒绝';
+    } else {
+      text = '$requester 请求悔棋（等待投票）';
+    }
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFF8E1),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Row(
+        children: [
+          const Icon(Icons.history, size: 16, color: Colors.orange),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 13)),
+          ),
+          if (c.iAmUndoRequester)
+            TextButton(onPressed: c.cancelUndo, child: const Text('取消')),
+        ],
+      ),
+    );
+  }
+
   void _openChat() {
     showModalBottomSheet<void>(
       context: context,
@@ -115,12 +183,14 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
       builder: (context, _) {
         final room = c.room;
         _checkResult(room);
-        final msg = c.timeoutMessage;
+        _checkUndo();
+        final msg = c.timeoutMessage ?? c.undoMessage;
         if (msg != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted || c.timeoutMessage == null) return;
+            if (!mounted || (c.timeoutMessage == null && c.undoMessage == null)) return;
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
             c.clearTimeoutMessage();
+            c.clearUndoMessage();
           });
         }
         return Scaffold(
@@ -138,7 +208,12 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
-          body: _buildBody(room),
+          body: Column(
+            children: [
+              if (c.undoPending) _undoBanner(),
+              Expanded(child: _buildBody(room)),
+            ],
+          ),
         );
       },
     );
@@ -191,6 +266,17 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 8),
           const Text('把房间号发给另外两位朋友，输入即可加入', textAlign: TextAlign.center),
+          TextButton.icon(
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('复制房间号'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: room.code));
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('房间号已复制，去微信发给朋友吧')),
+              );
+            },
+          ),
           const SizedBox(height: 24),
           PlayerBar(players: _info(room)),
           const SizedBox(height: 24),
@@ -247,6 +333,12 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           Expanded(
             child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
+          if (c.canRequestUndo)
+            TextButton.icon(
+              icon: const Icon(Icons.undo, size: 18),
+              label: const Text('悔棋'),
+              onPressed: c.requestUndo,
+            ),
           if (room.isFinished)
             FilledButton.tonal(
               onPressed: c.rematch,

@@ -63,32 +63,29 @@ class _LocalGameScreenState extends State<LocalGameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('本地三人对局'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '重新开局',
-            onPressed: c.restart,
+    return ListenableBuilder(
+      listenable: c,
+      builder: (context, _) {
+        _checkResult();
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('本地三人对局'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.undo),
+                tooltip: '悔棋',
+                onPressed: c.canUndo ? c.undo : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: '重新开局',
+                onPressed: c.restart,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListenableBuilder(
-        listenable: c,
-        builder: (context, _) {
-          _checkResult();
-          final info = c.players
-              .map((p) => PlayerInfo(
-                    name: p.name,
-                    stone: p.slot + 1,
-                    isTurn: c.turn == p.slot,
-                    statusLabel: p.isAi ? 'AI' : '真人',
-                  ))
-              .toList();
-          return Column(
+          body: Column(
             children: [
-              PlayerBar(players: info),
+              PlayerBar(players: _info()),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(8),
@@ -102,10 +99,21 @@ class _LocalGameScreenState extends State<LocalGameScreen> {
               ),
               _status(),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  List<PlayerInfo> _info() {
+    return c.players
+        .map((p) => PlayerInfo(
+              name: p.name,
+              stone: p.slot + 1,
+              isTurn: c.turn == p.slot,
+              statusLabel: p.isAi ? 'AI' : '真人',
+            ))
+        .toList();
   }
 
   Widget _status() {

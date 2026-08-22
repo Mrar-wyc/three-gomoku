@@ -36,4 +36,42 @@ void main() {
     expect(r.turnTimeoutSec, isNull);
     expect(r.moveDeadline, isNull);
   });
+
+  test('Room.fromJson 解析悔棋字段', () {
+    final r = Room.fromJson({
+      'id': 'a',
+      'code': 'ABC123',
+      'host_id': 'h',
+      'players': <Object>[],
+      'board': '',
+      'turn': 1,
+      'status': 'playing',
+      'winner': null,
+      'last_move_slot': 1,
+      'undo_slot': 1,
+      'undo_accepts': ['u1'],
+      'undo_expires_at': '2025-01-01 12:00:00+00',
+    });
+    expect(r.lastMoveSlot, 1);
+    expect(r.undoPending, isTrue);
+    expect(r.undoSenderSlot, 1);
+    expect(r.undoAccepts, ['u1']);
+    expect(r.undoExpiresAt, DateTime.parse('2025-01-01T12:00:00+00:00'));
+  });
+
+  test('undoPending 兼容旧数据', () {
+    final r = Room.fromJson({
+      'id': 'a',
+      'code': 'ABC123',
+      'host_id': 'h',
+      'players': <Object>[],
+      'board': '',
+      'turn': 0,
+      'status': 'waiting',
+      'winner': null,
+    });
+    expect(r.undoPending, isFalse);
+    expect(r.lastMoveSlot, isNull);
+    expect(r.undoAccepts, isEmpty);
+  });
 }

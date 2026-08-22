@@ -20,6 +20,7 @@ class LocalGameController extends ChangeNotifier {
   bool draw = false;
   bool aiThinking = false;
   int? lastIndex;
+  final List<(List<int>, int)> _undoStack = []; // (落子前棋盘, 落子前回合)
   int _aiCount = 0;
   String _difficulty = 'medium';
 
@@ -37,11 +38,31 @@ class LocalGameController extends ChangeNotifier {
     draw = false;
     aiThinking = false;
     lastIndex = null;
+    _undoStack.clear();
     notifyListeners();
     _maybeAi();
   }
 
   void restart() => start(_aiCount, difficulty: _difficulty);
+
+  /// 可悔棋：对局未结束、AI 未思考、且最后一步是真人落下。
+  bool get canUndo {
+    if (isFinished || aiThinking || _undoStack.isEmpty) return false;
+    final prevTurn = _undoStack.last.$2;
+    return prevTurn >= 0 && prevTurn < players.length && !players[prevTurn].isAi;
+  }
+
+  /// 悔一步：恢复落子前棋盘与回合。
+  void undo() {
+    if (!canUndo) return;
+    final (b, t) = _undoStack.removeLast();
+    board = b;
+    turn = t;
+    winner = null;
+    draw = false;
+    lastIndex = null;
+    notifyListeners();
+  }
 
   bool get isFinished => winner != null || draw;
 
@@ -56,6 +77,7 @@ class LocalGameController extends ChangeNotifier {
   }
 
   void _apply(int slot, int idx) {
+    _undoStack.add((List<int>.of(board), turn));
     final next = List<int>.of(board);
     next[idx] = slot + 1;
     board = next;

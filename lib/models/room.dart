@@ -13,6 +13,10 @@ class Room {
   final String aiDifficulty; // easy / medium / hard
   final int? turnTimeoutSec; // 每步限时秒数；null = 不限时
   final DateTime? moveDeadline; // 当前回合截止时间；null = 不适用
+  final int? lastMoveSlot; // 最后一步的座位（悔棋按钮可见性）
+  final int? undoSenderSlot; // 待同意悔棋的发起座位
+  final List<String> undoAccepts; // 已同意悔棋的成员 uid
+  final DateTime? undoExpiresAt; // 同意期限
 
   const Room({
     required this.id,
@@ -26,12 +30,17 @@ class Room {
     this.aiDifficulty = 'medium',
     this.turnTimeoutSec,
     this.moveDeadline,
+    this.lastMoveSlot,
+    this.undoSenderSlot,
+    this.undoAccepts = const [],
+    this.undoExpiresAt,
   });
 
   bool get isPlaying => status == 'playing';
   bool get isFinished => status == 'finished';
   bool get isDraw => isFinished && winner == null;
   bool get isBoardFull => !board.contains(GameLogic.empty);
+  bool get undoPending => undoSenderSlot != null;
 
   factory Room.fromJson(Map<String, dynamic> j) {
     final playersRaw = (j['players'] as List? ?? const []);
@@ -59,6 +68,13 @@ class Room {
       aiDifficulty: j['ai_difficulty'] as String? ?? 'medium',
       turnTimeoutSec: j['turn_timeout_sec'] as int?,
       moveDeadline: _parseTs(j['move_deadline']),
+      lastMoveSlot: j['last_move_slot'] as int?,
+      undoSenderSlot: j['undo_slot'] as int?,
+      undoAccepts: (j['undo_accepts'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      undoExpiresAt: _parseTs(j['undo_expires_at']),
     );
   }
 

@@ -76,6 +76,30 @@ class RoomService {
     return _parse(data);
   }
 
+  static Future<Room> requestUndo(String roomId) async {
+    final data = await SupabaseService.client.rpc(
+      'request_undo',
+      params: {'room_id': roomId},
+    );
+    return _parse(data);
+  }
+
+  static Future<Room> respondUndo(String roomId, bool accept) async {
+    final data = await SupabaseService.client.rpc(
+      'respond_undo',
+      params: {'room_id': roomId, 'accept': accept},
+    );
+    return _parse(data);
+  }
+
+  static Future<Room> cancelUndo(String roomId) async {
+    final data = await SupabaseService.client.rpc(
+      'cancel_undo',
+      params: {'room_id': roomId},
+    );
+    return _parse(data);
+  }
+
   static Future<Room> resetRoom(String roomId) async {
     final data = await SupabaseService.client.rpc(
       'reset_room',

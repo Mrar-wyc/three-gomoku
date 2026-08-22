@@ -32,6 +32,7 @@ class RoomController extends ChangeNotifier {
   int? lastIndex;
   Duration? remaining;
   String? timeoutMessage;
+  String? undoMessage;
   Timer? _countdown;
   bool _timeoutInFlight = false;
   bool _countedFinished = false;
@@ -231,6 +232,101 @@ class RoomController extends ChangeNotifier {
     }
   }
 
+  void clearUndoMessage() {
+    if (undoMessage != null) {
+      undoMessage = null;
+      notifyListeners();
+    }
+  }
+
+  // ---------- 悔棋 ----------
+
+  /// 是否有待处理的悔棋请求。
+  bool get undoPending => room?.undoPending ?? false;
+
+  /// 我能发起悔棋：对局中、无 pending、且最后一步是我下的（含被 AI 代下的座位）。
+  bool get canRequestUndo {
+    final r = room;
+    if (r == null || !r.isPlaying || r.undoPending) return false;
+    final slot = mySlot;
+    return slot >= 0 && r.lastMoveSlot == slot;
+  }
+
+  /// 我是待同意悔棋的发起者。
+  bool get iAmUndoRequester {
+    final r = room;
+    if (r == null || !r.undoPending || myUid == null) return false;
+    final s = r.undoSenderSlot;
+    if (s == null || s < 0 || s > 2) return false;
+    return r.players[s].uid == myUid;
+  }
+
+  /// 我是需要投票的真人座位（非发起者、非 AI）。
+  bool get iAmUndoVoter {
+    final r = room;
+    if (r == null || !r.undoPending || iAmUndoRequester) return false;
+    final slot = mySlot;
+    if (slot < 0 || r.players[slot].isAi) return false;
+    return true;
+  }
+
+  Future<void> requestUndo() async {
+    final r = room;
+    if (r == null || !canRequestUndo) return;
+    try {
+      final rr = await RoomService.requestUndo(r.id);
+      _applyRoom(rr);
+      undoMessage = rr.undoPending ? '已发起悔棋，等待其他玩家同意…' : '悔棋成功';
+      notifyListeners();
+    } catch (e) {
+      undoMessage = '悔棋失败：${_friendlyError(e)}';
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondUndo(bool accept) async {
+    final r = room;
+    if (r == null || !iAmUndoVoter) return;
+    try {
+      final rr = await RoomService.respondUndo(r.id, accept);
+      _applyRoom(rr);
+      if (!accept) {
+        undoMessage = '已拒绝悔棋';
+      } else if (!rr.undoPending) {
+        undoMessage = '已同意，悔棋生效';
+      } else {
+        undoMessage = '已同意，等待其他玩家…';
+      }
+      notifyListeners();
+    } catch (e) {
+      undoMessage = '操作失败：${_friendlyError(e)}';
+      notifyListeners();
+    }
+  }
+
+  Future<void> cancelUndo() async {
+    final r = room;
+    if (r == null || !iAmUndoRequester) return;
+    try {
+      _applyRoom(await RoomService.cancelUndo(r.id));
+      undoMessage = '已取消悔棋请求';
+      notifyListeners();
+    } catch (e) {
+      undoMessage = '取消失败：${_friendlyError(e)}';
+      notifyListeners();
+    }
+  }
+
+  String _friendlyError(Object e) {
+    final s = e.toString();
+    if (s.contains('undo pending')) return '已有悔棋请求待处理';
+    if (s.contains('not your last move')) return '只能悔自己下的最后一步';
+    if (s.contains('undo expired')) return '悔棋请求已过期';
+    if (s.contains('no moves to undo')) return '还没有可悔的落子';
+    if (s.contains('not your turn')) return '还没轮到你';
+    return s;
+  }
+
   // ---------- 心跳 ----------
 
   void _startHeartbeat() {
@@ -314,8 +410,12 @@ class RoomController extends ChangeNotifier {
     try {
       _applyRoom(await RoomService.submitMove(r.id, slot, row, col));
       _scheduleAiIfNeeded();
-    } catch (_) {
-      // 失败时 Realtime 会用服务端权威状态纠正。
+    } catch (e) {
+      if (e.toString().contains('undo pending')) {
+        undoMessage = '有悔棋请求待处理，先处理后才能落子';
+        notifyListeners();
+      }
+      // 其他失败时 Realtime 会用服务端权威状态纠正。
     }
   }
 
