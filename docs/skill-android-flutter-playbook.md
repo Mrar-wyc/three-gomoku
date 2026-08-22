@@ -117,7 +117,7 @@ class MoveFeedback {
 
 - **Postgres 时间戳** '2025-01-01 12:00:00+00' → replaceFirst(' ', 'T') 才能 parse。
 - **PostgREST** 返回表行是数组 → data.first 再转模型。
-- **plpgsql** 变量与列撞名 → column reference is ambiguous，变量加 v_ 前缀。
+- **plpgsql 列与变量同名**：PostgreSQL 9.6+ 对「SQL 语句中裸列引用与函数参数/变量同名」**直接报 42702**（不是"列优先"）。`where id = room_id` 合法（列 id 与参数 room_id 不同名），但 `where room_id = p_room`（列 room_id + 参数 room_id）就炸。**规则：SQL 中任何裸列引用都不能与参数同名** —— 要么参数名避开所有列名（p_room），要么列引用用表别名限定（m.room_id）。
 - **SQL 嵌套**：do $$ ... $$ 块内不能再写 $$（报 syntax error），内层改单引号字符串。
 - **Supabase anon key** 新版 sb_publishable_ 前缀 → 客户端用 publishableKey: 参数（anonKey 已废弃告警）。
 - **Realtime 载荷**：广播行变大（如塞历史数组）会撑爆消息限制 → 历史放子表不进 publication。

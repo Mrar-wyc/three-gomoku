@@ -28,6 +28,8 @@
 ### 已知问题与修复
 - **42702 撞名 bug**（真机发现）：0006 中 `where room_id = room_id` / `values (room_id, ...)` 的裸标识符被 PL/pgSQL 解析为列而非函数参数 → 发起悔棋与「再来一局」报 ambiguous。
 - 修复：`supabase/migrations/0007_fix_ambiguous.sql` 重写 5 个函数，参数名保持 `room_id` 不变（客户端按命名参数调用），函数体内引入局部变量 `p_room := room_id` 并全部引用 p_room。签名不变 → 无需重新 grant。
+- **0007 未彻底修复，追加 `0008_fix_ambiguous2.sql`**：真机+SQL 直调（CONTEXT 行号）定位出真正根因 —— PostgreSQL 9.6+ 对「列与 PL/pgSQL 变量**同名**」直接报 42702（不是文档说的"列优先"）。0007 消除了"变量=列"的左侧歧义，但 `where room_id = p_room` 里裸 `room_id` 仍与参数 `room_id` 同名 → 只有 `request_undo` 与 `reset_room`（引用 moves.room_id 的函数）炸。修复：moves 加表别名，列引用全部限定 `m.room_id` / `m.id`。
+- 经验（已沉淀进坑清单）：**SQL 语句中任何裸列引用都不能与函数参数/变量同名**；参数名避开所有列名，或列引用一律表别名限定。已用 REST 全链路闭环验证（发起→全员同意→撤销、终局→再来一局→新局落子→新局悔棋）。
 - 经验（已沉淀进坑清单）：**plpgsql 里参数名与列名相同时，SQL 语句内裸引用一律解析为列**；要么参数起名不与任何列重名（如 p_room），要么函数体内先复制到局部变量。
 
 ### 真机结果
