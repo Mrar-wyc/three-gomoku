@@ -72,10 +72,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               controller: _name,
+              maxLength: 20,
               decoration: const InputDecoration(
                 labelText: '我的昵称',
                 helperText: '创建/加入房间时使用',
                 border: OutlineInputBorder(),
+                counterText: '',
               ),
             ),
           ),

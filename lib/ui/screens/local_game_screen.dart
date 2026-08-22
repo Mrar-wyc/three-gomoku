@@ -92,6 +92,7 @@ class _LocalGameScreenState extends State<LocalGameScreen> {
                   child: BoardWidget(
                     board: c.board,
                     lastIndex: c.lastIndex,
+                    highlight: _winHighlight(),
                     onTap: c.placeAt,
                     enabled: c.canPlace,
                   ),
@@ -103,6 +104,23 @@ class _LocalGameScreenState extends State<LocalGameScreen> {
         );
       },
     );
+  }
+
+  /// 终局制胜连线高亮（5 连胜或满盘最长连子）。
+  Set<int> _winHighlight() {
+    if (!c.isFinished || c.winner == null) return {};
+    final lastIdx = c.lastIndex;
+    if (lastIdx != null) {
+      final w = GameLogic.winnerAfterMove(
+          c.board, GameLogic.rowOf(lastIdx), GameLogic.colOf(lastIdx));
+      if (w != null) {
+        return GameLogic.winningLineCells(c.board, lastIdx).toSet();
+      }
+    }
+    if (GameLogic.isFull(c.board)) {
+      return GameLogic.longestLineCells(c.board, c.winner! + 1).toSet();
+    }
+    return {};
   }
 
   List<PlayerInfo> _info() {

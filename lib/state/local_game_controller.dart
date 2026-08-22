@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/ai.dart';
@@ -106,13 +108,26 @@ class LocalGameController extends ChangeNotifier {
     aiThinking = true;
     notifyListeners();
 
-    Future.delayed(const Duration(milliseconds: 350), () {
+    Future.delayed(const Duration(milliseconds: 350), () async {
       if (isFinished || !players[turn].isAi) {
         aiThinking = false;
         notifyListeners();
         return;
       }
-      final idx = GomokuAI.bestMove(board, turn + 1, difficulty: _difficulty);
+      // 后台 isolate 计算，避免困难档卡 UI（ai.dart 为纯 Dart）
+      final curBoard = List<int>.of(board);
+      final curTurn = turn;
+      final diff = _difficulty;
+      final int idx;
+      try {
+        idx = await Isolate.run(
+          () => GomokuAI.bestMove(curBoard, curTurn + 1, difficulty: diff),
+        );
+      } catch (_) {
+        aiThinking = false;
+        notifyListeners();
+        return;
+      }
       aiThinking = false;
       _apply(turn, idx);
     });

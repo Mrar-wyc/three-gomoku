@@ -116,4 +116,35 @@ void main() {
     expect(s.draws, 1);
     expect(s.losses, 1);
   });
+
+  test('winningLineCells 返回五连整条格子', () {
+    final b = GameLogic.newBoard();
+    for (int c = 0; c < 5; c++) {
+      b[GameLogic.indexOf(5, c)] = 1;
+    }
+    final cells = GameLogic.winningLineCells(b, GameLogic.indexOf(5, 2));
+    expect(cells.length, 5);
+    expect(cells, contains(GameLogic.indexOf(5, 0)));
+    expect(cells, contains(GameLogic.indexOf(5, 4)));
+  });
+
+  test('winningLineCells 四连返回空', () {
+    final b = GameLogic.newBoard();
+    for (int c = 0; c < 4; c++) {
+      b[GameLogic.indexOf(5, c)] = 1;
+    }
+    expect(GameLogic.winningLineCells(b, GameLogic.indexOf(5, 1)), isEmpty);
+  });
+
+  test('longestLineCells 返回最长连子格子', () {
+    final b = GameLogic.newBoard();
+    for (int c = 0; c < 4; c++) {
+      b[GameLogic.indexOf(3, c)] = 2;
+    }
+    for (int c = 6; c < 9; c++) {
+      b[GameLogic.indexOf(3, c)] = 2;
+    }
+    final cells = GameLogic.longestLineCells(b, 2);
+    expect(cells.length, 4); // 4 连 > 3 连
+  });
 }

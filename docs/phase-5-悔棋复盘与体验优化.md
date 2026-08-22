@@ -36,9 +36,31 @@
 （待填写）
 
 ## M2 · 复盘 + 胜利连线高亮（v1.8.0+9）
+### 改动
+- **胜利连线高亮**：`lib/core/game_logic.dart` 新增纯函数 `winningLineCells(board, idx)`（过 idx 的整条五连）与 `longestLineCells(board, stone)`（最长连子格子）；`lib/ui/widgets/board_widget.dart` 新增 `highlight` 集合，制胜子画橙色高亮环；本地局与联机局终局时自动计算（5 连胜 → winningLineCells(lastIndex)；满盘判胜 → longestLineCells(胜方)；和棋不高亮）。
+- **复盘（联机）**：`lib/services/moves_service.dart`（moves 表按 id 正序拉取，RLS 成员可读）+ `lib/ui/screens/replay_screen.dart`（只读棋盘 + 进度条拖动 + 上一步/下一步/自动播放 600ms + 当前手信息 + 终局制胜高亮）；`room_screen.dart` 终局弹窗新增「复盘」按钮。
+- 测试：`test/game_logic_test.dart` 追加 3 例（五连格子/四连空/最长连子）；版本 1.8.0+9。
+### 验证清单（真机）
+- [ ] `flutter analyze` 零告警、`flutter test` 全绿
+- [ ] 本地局与联机局：五连获胜后制胜子出现橙色高亮环
+- [ ] 满盘最长连子判胜时高亮最长连子
+- [ ] 终局弹窗点「复盘」→ 回放整局：拖动/上一步/下一步/自动播放正常，终局高亮同步
+- [ ] 复盘界面棋盘只读（点击无反应）
+### 真机结果
 （待填写）
 
 ## M3 · 体验优化包（v1.9.0+10）
+### 改动
+- **AI 后台计算**：`room_controller._scheduleAiIfNeeded` 与 `local_game_controller._maybeAi` 的 AI 计算移入 `Isolate.run`（ai.dart 为纯 Dart，无 Flutter 依赖）→ 困难档不再卡 UI；isolate 失败安全回退。
+- **昵称限制**：建房/加入/设置页输入框 `maxLength: 20`（服务端校验已随 0006 生效）。
+- **聊天未读角标**：RoomController 新增 `unreadChatCount`/`markChatRead`（进房基线=历史数）；房间页聊天按钮 `Badge.count` 显示未读数；打开面板标记已读，面板内静默同步（避免 build 期间通知）。
+- 版本 1.9.0+10。
+### 验证清单（真机）
+- [ ] `flutter analyze` 零告警、`flutter test` 全绿
+- [ ] 困难 AI 落子时界面不卡顿（对比优化前）
+- [ ] 昵称输入超过 20 字被截断；服务端超长昵称被拒（返回 invalid name）
+- [ ] 有人发消息时聊天按钮出现未读数角标；打开面板后角标消失；面板开着时新消息不累计角标
+### 真机结果
 （待填写）
 
 ## 明确不做（本阶段）

@@ -77,4 +77,56 @@ class GameLogic {
     if (l3 > l1 && l3 > l2) return 2;
     return null;
   }
+
+  /// 经过 [idx] 的制胜连子（四方向任一 ≥5 的整条），返回格子索引；无则空列表。
+  static List<int> winningLineCells(List<int> board, int idx) {
+    final stone = board[idx];
+    if (stone == empty) return const [];
+    const dirs = [
+      [0, 1], [1, 0], [1, 1], [1, -1],
+    ];
+    for (final d in dirs) {
+      final cells = <int>[idx];
+      for (final sign in const [1, -1]) {
+        int r = rowOf(idx) + d[0] * sign;
+        int c = colOf(idx) + d[1] * sign;
+        while (inBounds(r, c) && board[indexOf(r, c)] == stone) {
+          cells.add(indexOf(r, c));
+          r += d[0] * sign;
+          c += d[1] * sign;
+        }
+      }
+      if (cells.length >= 5) return cells;
+    }
+    return const [];
+  }
+
+  /// [stone] 的最长连子（含方向），返回格子索引；空盘返回空列表。
+  static List<int> longestLineCells(List<int> board, int stone) {
+    List<int> best = const [];
+    const dirs = [
+      [0, 1], [1, 0], [1, 1], [1, -1],
+    ];
+    for (int r = 0; r < size; r++) {
+      for (int c = 0; c < size; c++) {
+        if (board[indexOf(r, c)] != stone) continue;
+        for (final d in dirs) {
+          // 只统计线段起点（反向无同色），避免重复
+          final br = r - d[0];
+          final bc = c - d[1];
+          if (inBounds(br, bc) && board[indexOf(br, bc)] == stone) continue;
+          final cells = <int>[];
+          int rr = r;
+          int cc = c;
+          while (inBounds(rr, cc) && board[indexOf(rr, cc)] == stone) {
+            cells.add(indexOf(rr, cc));
+            rr += d[0];
+            cc += d[1];
+          }
+          if (cells.length > best.length) best = List<int>.of(cells);
+        }
+      }
+    }
+    return best;
+  }
 }

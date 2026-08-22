@@ -63,9 +63,11 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: _name,
+              maxLength: 20,
               decoration: const InputDecoration(
                 labelText: '你的昵称',
                 border: OutlineInputBorder(),
+                counterText: '',
               ),
             ),
             const SizedBox(height: 24),

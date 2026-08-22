@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -37,6 +38,26 @@ class RoomController extends ChangeNotifier {
   bool _timeoutInFlight = false;
   bool _countedFinished = false;
   List<ChatMessage> messages = [];
+  int _lastReadCount = 0;
+
+  /// 未读聊天消息数（打开面板/进房后清零）。
+  int get unreadChatCount {
+    final n = messages.length - _lastReadCount;
+    return n < 0 ? 0 : n;
+  }
+
+  /// 标记已读（打开聊天面板时调用）。
+  void markChatRead() {
+    final n = messages.length;
+    if (_lastReadCount == n) return;
+    _lastReadCount = n;
+    notifyListeners();
+  }
+
+  /// 面板内静默同步（不通知，避免 build 期间触发重建）。
+  void markChatReadSilently() {
+    _lastReadCount = messages.length;
+  }
 
   int get mySlot {
     final r = room;
@@ -426,6 +447,7 @@ class RoomController extends ChangeNotifier {
     if (r == null) return;
     try {
       messages = await ChatService.history(r.id);
+      _lastReadCount = messages.length;
       notifyListeners();
     } catch (_) {}
   }
@@ -465,7 +487,17 @@ class RoomController extends ChangeNotifier {
           cur.winner != null) {
         return;
       }
-      final idx = GomokuAI.bestMove(cur.board, slot + 1, difficulty: cur.aiDifficulty);
+      // 后台 isolate 计算，避免困难档卡 UI（ai.dart 为纯 Dart）
+      final curBoard = List<int>.of(cur.board);
+      final aiDiff = cur.aiDifficulty;
+      final int idx;
+      try {
+        idx = await Isolate.run(
+          () => GomokuAI.bestMove(curBoard, slot + 1, difficulty: aiDiff),
+        );
+      } catch (_) {
+        return;
+      }
       try {
         _applyRoom(await RoomService.submitMove(
           cur.id,
@@ -566,6 +598,7 @@ class RoomController extends ChangeNotifier {
     await RoomPrefs.clear();
     room = null;
     messages = [];
+    _lastReadCount = 0;
     notifyListeners();
   }
 

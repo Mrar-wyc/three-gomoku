@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/constants.dart';
+import '../../core/game_logic.dart';
 import '../../models/room.dart';
 import '../../state/room_controller.dart';
+import 'replay_screen.dart';
 import '../widgets/board_widget.dart';
 import '../widgets/chat_panel.dart';
 import '../widgets/player_bar.dart';
@@ -68,6 +70,15 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('关闭'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => ReplayScreen(roomId: room.id)),
+              );
+            },
+            child: const Text('复盘'),
           ),
           FilledButton(
             onPressed: () {
@@ -149,6 +160,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
   }
 
   void _openChat() {
+    c.markChatRead();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -202,7 +214,11 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.chat_bubble_outline),
+                icon: Badge.count(
+                  count: c.unreadChatCount,
+                  isLabelVisible: c.unreadChatCount > 0,
+                  child: const Icon(Icons.chat_bubble_outline),
+                ),
                 tooltip: '房间聊天',
                 onPressed: _openChat,
               ),
@@ -299,6 +315,7 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
             child: BoardWidget(
               board: room.board,
               lastIndex: c.lastIndex,
+              highlight: _winHighlight(room),
               onTap: c.submitMove,
               enabled: c.isMyTurn,
             ),
@@ -347,6 +364,23 @@ class _RoomScreenState extends State<RoomScreen> with WidgetsBindingObserver {
         ],
       ),
     );
+  }
+
+  /// 终局制胜连线高亮（5 连胜或满盘最长连子）。
+  Set<int> _winHighlight(Room room) {
+    if (!room.isFinished || room.winner == null) return {};
+    final lastIdx = c.lastIndex;
+    if (lastIdx != null) {
+      final w = GameLogic.winnerAfterMove(
+          room.board, GameLogic.rowOf(lastIdx), GameLogic.colOf(lastIdx));
+      if (w != null) {
+        return GameLogic.winningLineCells(room.board, lastIdx).toSet();
+      }
+    }
+    if (room.isBoardFull) {
+      return GameLogic.longestLineCells(room.board, room.winner! + 1).toSet();
+    }
+    return {};
   }
 
   List<PlayerInfo> _info(Room room) {

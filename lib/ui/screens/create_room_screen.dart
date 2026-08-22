@@ -53,9 +53,11 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
           children: [
             TextField(
               controller: _name,
+              maxLength: 20,
               decoration: const InputDecoration(
                 labelText: '你的昵称',
                 border: OutlineInputBorder(),
+                counterText: '',
               ),
             ),
             const SizedBox(height: 24),

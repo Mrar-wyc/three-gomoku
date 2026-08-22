@@ -72,6 +72,7 @@ class _ChatPanelState extends State<ChatPanel> {
               listenable: c,
               builder: (context, _) {
                 final msgs = c.messages;
+                c.markChatReadSilently();
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scroll.hasClients) {
                     _scroll.jumpTo(_scroll.position.maxScrollExtent);

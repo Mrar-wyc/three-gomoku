@@ -8,6 +8,7 @@ class BoardWidget extends StatefulWidget {
   final int? lastIndex;
   final void Function(int row, int col)? onTap;
   final bool enabled;
+  final Set<int> highlight; // 制胜连线高亮格子
 
   const BoardWidget({
     super.key,
@@ -15,6 +16,7 @@ class BoardWidget extends StatefulWidget {
     this.lastIndex,
     this.onTap,
     this.enabled = true,
+    this.highlight = const {},
   });
 
   @override
@@ -65,6 +67,7 @@ class _BoardWidgetState extends State<BoardWidget>
                   board: widget.board,
                   lastIndex: widget.lastIndex,
                   anim: _anim.value,
+                  highlight: widget.highlight,
                 ),
                 size: Size(size, size),
               ),
@@ -89,8 +92,14 @@ class BoardPainter extends CustomPainter {
   final List<int> board;
   final int? lastIndex;
   final double anim;
+  final Set<int> highlight;
 
-  BoardPainter({required this.board, this.lastIndex, this.anim = 1});
+  BoardPainter({
+    required this.board,
+    this.lastIndex,
+    this.anim = 1,
+    this.highlight = const {},
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -195,6 +204,18 @@ class BoardPainter extends CustomPainter {
           center,
           radius * 0.3,
           Paint()..color = Colors.redAccent,
+        );
+      }
+
+      // 制胜连线高亮
+      if (highlight.contains(idx)) {
+        canvas.drawCircle(
+          center,
+          radius * 1.18,
+          Paint()
+            ..color = const Color(0xFFFF6F00)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.6,
         );
       }
     }
