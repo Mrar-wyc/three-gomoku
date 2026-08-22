@@ -198,12 +198,23 @@ class BoardPainter extends CustomPainter {
         );
       }
 
-      // 最后一手标记
+      // 最后一手标记：黑白双环（任何棋子颜色下都突出）
       if (isLast) {
         canvas.drawCircle(
           center,
-          radius * 0.3,
-          Paint()..color = Colors.redAccent,
+          radius * 1.38,
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.4,
+        );
+        canvas.drawCircle(
+          center,
+          radius * 1.18,
+          Paint()
+            ..color = const Color(0xFF2E2E2E)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4,
         );
       }
 
